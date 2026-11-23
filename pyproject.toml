@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "phantomrecon"
+version = "3.0.0"
+authors = [
+  { name="k41k35" },
+]
+description = "God-Tier Reconnaissance Pipeline: Adaptive Nmap Scanning, High-Speed Web Fuzzing & Threat Intel Profiling"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Security",
+    "Environment :: Console",
+]
+dependencies = [
+    "rich>=13.0.0",
+    "requests>=2.28.0",
+    "urllib3>=1.26.0",
+]
+
+[project.scripts]
+phantomrecon = "phantomrecon:main"

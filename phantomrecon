@@ -1,0 +1,265 @@
+#!/usr/bin/env python3
+"""
+╔══════════════════════════════════════════════════════════════════╗
+║  PHANTOM RECON — UNIFIED OFFENSIVE RECONNAISSANCE CLI          ║
+║  Automated Attack Surface Mapping, Port Scanning & Web Intel     ║
+║  by k41k35 — Arsenal Ofensivo                                   ║
+╚══════════════════════════════════════════════════════════════════╝
+"""
+
+import sys
+import os
+import shutil
+import subprocess
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
+BIN_DIR = BASE_DIR / "bin"
+
+NMAP_ENGINE = BIN_DIR / "nmap_engine.py"
+FERODIR_SH = BIN_DIR / "ferodir.sh"
+WEB_INSPECTOR = BIN_DIR / "web_inspector.py"
+
+try:
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.table import Table
+    from rich import box
+    HAS_RICH = True
+except ImportError:
+    HAS_RICH = False
+
+console = Console() if HAS_RICH else None
+
+
+def print_banner():
+    banner = r"""[bold cyan]
+    ██████╗ ██╗  ██╗ █████╗ ███╗   ██╗████████╗ ██████╗ ███╗   ███╗
+    ██╔══██╗██║  ██║██╔══██╗████╗  ██║╚══██╔══╝██╔═══██╗████╗ ████║
+    ██████╔╝███████║███████║██╔██╗ ██║   ██║   ██║   ██║██╔████╔██║
+    ██╔═══╝ ██╔══██║██╔══██║██║╚██╗██║   ██║   ██║   ██║██║╚██╔╝██║
+    ██║     ██║  ██║██║  ██║██║ ╚████║   ██║   ╚██████╔╝██║ ╚═╝ ██║
+    ╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝    ╚═════╝ ╚═╝     ╚═╝
+    [/bold cyan][bold gold1]               ⚡ RECONNAISSANCE ARSENAL v3.0 ⚡[/bold gold1]
+    [grey50]      Unified Attack Surface Mapping · Adaptive Nmap · Web Intel[/grey50]
+    [grey42]                     Engineered by k41k35[/grey42]
+"""
+    if HAS_RICH:
+        console.print(banner)
+    else:
+        print("=== PHANTOM RECON v3.0 by k41k35 ===")
+
+
+def show_help():
+    print_banner()
+    if HAS_RICH:
+        table = Table(title="[bold yellow]Available Commands[/bold yellow]", box=box.ROUNDED, expand=True)
+        table.add_column("Command", style="cyan", no_wrap=True)
+        table.add_column("Description", style="white")
+        table.add_column("Example", style="green")
+
+        table.add_row("scan <target> [flags]", "Full port scan, service profiling & NSE scripts", "phantomrecon scan 10.10.11.20 --fast")
+        table.add_row("fuzz <url> [flags]", "High-speed directory & endpoint fuzzing (Feroxbuster)", "phantomrecon fuzz http://10.10.11.20:8080")
+        table.add_row("inspect <target|file>", "Vulnerability correlation, headers & technology stack", "phantomrecon inspect scan.json --stealth")
+        table.add_row("full <target>", "End-to-end full recon (Port Scan → Web Fuzz → Deep Intel)", "phantomrecon full 10.10.11.20")
+        table.add_row("doctor", "Verify environment, required binaries and wordlists", "phantomrecon doctor")
+
+        console.print(table)
+        console.print("\n[bold]General Options:[/bold]")
+        console.print("  [cyan]-h, --help[/cyan]     Show this help message and exit")
+        console.print("  [cyan]-v, --version[/cyan]  Show engine version information\n")
+    else:
+        print("Commands:")
+        print("  scan <target> [flags]   - Nmap adaptive port scan & service profiling")
+        print("  fuzz <url> [flags]      - Feroxbuster directory discovery")
+        print("  inspect <target|file>   - Web inspector & threat correlation")
+        print("  full <target>           - Chained full recon pipeline")
+        print("  doctor                  - System dependency diagnostic")
+
+
+def run_doctor():
+    print_banner()
+    checks = [
+        ("Python 3", sys.version.split()[0], True, "Core runtime"),
+        ("rich", "Installed" if HAS_RICH else "Missing", HAS_RICH, "Visual formatting engine"),
+    ]
+
+    try:
+        import requests
+        checks.append(("requests", requests.__version__, True, "HTTP client engine"))
+    except ImportError:
+        checks.append(("requests", "Missing", False, "pip install requests"))
+
+    # System binaries
+    for bin_name in ["nmap", "feroxbuster", "jq", "tmux", "curl"]:
+        path = shutil.which(bin_name)
+        checks.append((bin_name, path if path else "Not Found in PATH", bool(path), "System tool"))
+
+    # Wordlists check
+    wl_found = False
+    wl_path = ""
+    candidate_dirs = [
+        os.environ.get("SECLISTS", ""),
+        os.environ.get("SECLISTS_DIR", ""),
+        "/usr/share/seclists",
+        "/usr/share/wordlists/seclists",
+        "/usr/share/wordlists/SecLists",
+        "/opt/homebrew/share/seclists",
+        str(Path.home() / "wordlists/seclists"),
+    ]
+    for c in candidate_dirs:
+        if c and os.path.isdir(c):
+            wl_found = True
+            wl_path = c
+            break
+
+    checks.append(("SecLists", wl_path if wl_found else "Not Found", wl_found, "Wordlists repository"))
+
+    if HAS_RICH:
+        t = Table(title="[bold yellow]System Diagnostic Matrix[/bold yellow]", box=box.ROUNDED)
+        t.add_column("Component", style="cyan")
+        t.add_column("Status / Path", style="white")
+        t.add_column("State", justify="center")
+        t.add_column("Notes", style="grey50")
+
+        for name, info, ok, note in checks:
+            status_text = "[green]✔ READY[/green]" if ok else "[red]✘ MISSING[/red]"
+            t.add_row(name, info, status_text, note)
+        console.print(t)
+    else:
+        for name, info, ok, note in checks:
+            print(f"[{'OK' if ok else 'FAIL'}] {name}: {info} ({note})")
+
+
+def run_scan(args):
+    cmd = [sys.executable, str(NMAP_ENGINE)] + args
+    return subprocess.call(cmd)
+
+
+def run_fuzz(args):
+    cmd = [str(FERODIR_SH)] + args
+    return subprocess.call(cmd)
+
+
+def run_inspect(args):
+    cmd = [sys.executable, str(WEB_INSPECTOR)] + args
+    return subprocess.call(cmd)
+
+
+COMMON_WEB_PORTS = [80, 443, 8080, 8000, 8443, 8888, 3000, 5000]
+
+
+def _say(msg, style="cyan"):
+    if HAS_RICH:
+        console.print(f"[{style}]{msg}[/{style}]")
+    else:
+        print(msg)
+
+
+def _detect_web_ports(target, ports=COMMON_WEB_PORTS, timeout=1.0):
+    """Lightweight TCP connect probe to find live web ports. Dependency-free so
+    the pipeline can decide what to fuzz/inspect without parsing scan output."""
+    import socket
+    live = []
+    for port in ports:
+        try:
+            with socket.create_connection((target, port), timeout=timeout):
+                live.append(port)
+        except (OSError, socket.timeout):
+            continue
+    return live
+
+
+def _web_url(target, port):
+    scheme = "https" if port in (443, 8443) else "http"
+    default = (scheme == "http" and port == 80) or (scheme == "https" and port == 443)
+    return f"{scheme}://{target}" if default else f"{scheme}://{target}:{port}"
+
+
+def run_full(args):
+    if not args:
+        _say("Error: Target IP or Hostname required for full scan.", "red")
+        return 1
+
+    target = args[0]
+    extra_flags = args[1:]
+    print_banner()
+    if HAS_RICH:
+        console.print(Panel(f"[bold green]Starting Unified Pipeline against:[/] [bold gold1]{target}[/]", border_style="cyan"))
+
+    # ── Phase 1: Port scan & service profiling ───────────────────────────────
+    _say("\n━━━ PHASE 1/3: Port Scan & Service Intel ━━━", "bold cyan")
+    rc = run_scan([target] + extra_flags)
+    if rc != 0:
+        _say(f"Port scan finished with status {rc}; continuing pipeline.", "yellow")
+
+    # ── Phase 2: Web surface discovery ────────────────────────────────────────
+    _say("\n━━━ PHASE 2/3: Web Surface Discovery ━━━", "bold cyan")
+    web_ports = _detect_web_ports(target)
+    if not web_ports:
+        _say("No common web ports responded; pipeline complete (port scan only).", "yellow")
+        return rc
+
+    web_urls = [_web_url(target, p) for p in web_ports]
+    _say("Web endpoints detected: " + ", ".join(web_urls), "green")
+
+    # ferodir.sh needs a POSIX shell + feroxbuster; skip gracefully if absent.
+    ferox_ok = shutil.which("feroxbuster") is not None and os.name != "nt"
+    if not ferox_ok:
+        _say("Skipping directory fuzzing (feroxbuster / POSIX shell unavailable).", "grey50")
+
+    # ── Phase 3: Deep web inspection ──────────────────────────────────────────
+    _say("\n━━━ PHASE 3/3: Deep Web Inspection ━━━", "bold cyan")
+    worst_rc = 0
+    for url in web_urls:
+        if ferox_ok:
+            _say(f"→ Fuzzing {url}", "cyan")
+            run_fuzz([url])
+        _say(f"→ Inspecting {url}", "cyan")
+        irc = run_inspect([url])
+        worst_rc = worst_rc or irc
+
+    _say("\n✔ Unified pipeline complete.", "bold green")
+    return rc or worst_rc
+
+
+def main():
+    if len(sys.argv) < 2:
+        show_help()
+        sys.exit(0)
+
+    cmd = sys.argv[1].lower()
+    sub_args = sys.argv[2:]
+
+    if cmd in ("-h", "--help", "help"):
+        show_help()
+        sys.exit(0)
+    elif cmd in ("-v", "--version", "version"):
+        print("Phantom Recon Suite v3.0 — by k41k35")
+        sys.exit(0)
+    elif cmd == "scan":
+        sys.exit(run_scan(sub_args))
+    elif cmd == "fuzz":
+        sys.exit(run_fuzz(sub_args))
+    elif cmd == "inspect":
+        sys.exit(run_inspect(sub_args))
+    elif cmd == "full":
+        sys.exit(run_full(sub_args))
+    elif cmd == "doctor":
+        run_doctor()
+        sys.exit(0)
+    else:
+        # Default: if first arg is an IP or hostname, treat as scan target
+        if any(c.isdigit() for c in cmd) or "." in cmd:
+            sys.exit(run_scan(sys.argv[1:]))
+        else:
+            if HAS_RICH:
+                console.print(f"[red]Unknown command: {cmd}[/red]")
+            else:
+                print(f"Unknown command: {cmd}")
+            show_help()
+            sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

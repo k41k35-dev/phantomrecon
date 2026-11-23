@@ -1,0 +1,78 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Offensive artifacts, logs & dumps
+*.log
+*.dump
+*.raw
+*.pcap
+*.cap
+/recon_output/
+/scans/
+nmap/
+ferox_*.json
+ferox_*.txt
+*.nmap
+*.gnmap
+*.xml
+services.md
+recon_summary.md
+web_inspector_*.json
+web_inspector_*.md
+urls.txt
+
+# Wordlists & Temp files
+*.tmp
+*.bak
+*.old
+*.swp
+*~
+wordlists/
+seclists/
+
+# Operating System & Editor Metadata
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
